@@ -1,15 +1,16 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const generateUGCImage = async (
   personImageBase64: string,
   personImageMimeType: string,
   productImageBase64: string,
   productImageMimeType: string,
-  sceneDescription: string
+  sceneDescription: string,
+  retryCount: number = 0
 ): Promise<string> => {
-  // Create a new GoogleGenAI instance right before the call to ensure 
-  // it uses the most up-to-date API key from the environment.
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API_KEY is not available in the environment.");
@@ -17,37 +18,38 @@ export const generateUGCImage = async (
   
   const ai = new GoogleGenAI({ apiKey });
 
-  const prompt = `A highly realistic, professional UGC (User Generated Content) photo for Instagram. 
-  The scene setting is: "${sceneDescription}".
-  The image must naturally blend the provided person and the provided product into this environment.
-  The person should be interacting with the product in a believable way (e.g., holding it, using it, or having it placed nearby in their space).
+  // Optimization: Consistently use JPEG as our optimizer in ImageUploader converts to optimized JPEG
+  const pMime = personImageMimeType || 'image/jpeg';
+  const prodMime = productImageMimeType || 'image/jpeg';
+
+  const prompt = `Create a realistic, high-quality UGC (User Generated Content) Instagram photo. 
+  Scene Atmosphere: "${sceneDescription}".
   
-  Style Requirements:
-  - Aesthetic lifestyle photography
-  - Soft natural lighting
-  - 50mm lens effect with shallow depth of field (bokeh background)
-  - Crisp details on both the person and the product
-  - Modern Instagram aesthetic (clean, vibrant, authentic)
-  - High resolution (1K)`;
+  Instructions:
+  1. Blend the person from the provided person-image and the product from the product-image.
+  2. Seamlessly place them into the specified scene.
+  3. The person should be interacting with the product naturally (holding it, using it, or looking at it).
+  4. Use soft, natural lighting and an authentic "smartphone photo" aesthetic.
+  5. The final output MUST be a single high-quality 1:1 square image.
+  
+  Produce ONLY the generated image.`;
   
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          {
-            text: prompt,
-          },
+          { text: prompt },
           {
             inlineData: {
               data: personImageBase64,
-              mimeType: personImageMimeType,
+              mimeType: pMime,
             },
           },
           {
             inlineData: {
               data: productImageBase64,
-              mimeType: productImageMimeType,
+              mimeType: prodMime,
             },
           },
         ],
@@ -60,7 +62,7 @@ export const generateUGCImage = async (
     });
 
     if (!response.candidates?.[0]?.content?.parts) {
-      throw new Error("Invalid response format from Gemini API.");
+      throw new Error("No output generated from the model.");
     }
 
     for (const part of response.candidates[0].content.parts) {
@@ -69,13 +71,28 @@ export const generateUGCImage = async (
       }
     }
     
-    throw new Error("No image data found in the response parts.");
+    // If no image but text was returned, try to provide that as info
+    const textOutput = response.text;
+    if (textOutput) {
+       console.warn("Model returned text instead of image:", textOutput);
+       throw new Error(`AI returned text instead of an image. This usually happens if the content is flagged. Try a different scene.`);
+    }
+
+    throw new Error("The AI model did not return an image part. Please try again.");
+
   } catch (error: any) {
     console.error("Gemini API call failed:", error);
-    // If we get a 404/Not Found, it might be an API key issue in some environments
-    if (error?.message?.includes("Requested entity was not found")) {
-      throw new Error("API configuration error. Please check your API key and project settings.");
+
+    // Retry for rate limits or transient server errors
+    if (retryCount < 1 && (error.message?.includes('500') || error.message?.includes('429'))) {
+      await delay(2000);
+      return generateUGCImage(personImageBase64, personImageMimeType, productImageBase64, productImageMimeType, sceneDescription, retryCount + 1);
     }
-    throw new Error(error.message || "Failed to generate image via Gemini API.");
+
+    if (error?.message?.includes("Requested entity was not found")) {
+      throw new Error("API endpoint not found. Ensure your environment has access to 'gemini-2.5-flash-image'.");
+    }
+    
+    throw new Error(error.message || "Failed to generate image. Please try again with smaller or clearer images.");
   }
 };

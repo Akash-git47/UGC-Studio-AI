@@ -124,11 +124,13 @@ const App: React.FC = () => {
     setGeneratedImage(null);
 
     try {
+      // The ImageUploader now resizes and converts to image/jpeg, 
+      // so we use 'image/jpeg' as the explicit MIME type for best compatibility.
       const resultBase64 = await generateUGCImage(
         personImage.croppedBase64,
-        personImage.file?.type || 'image/jpeg',
+        'image/jpeg',
         productImage.croppedBase64,
-        productImage.file?.type || 'image/jpeg',
+        'image/jpeg',
         selectedSubScene
       );
 
