@@ -3,6 +3,36 @@ import { GoogleGenAI } from "@google/genai";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Parses the Gemini API error to provide a human-readable message.
+ * Specifically handles quota issues and invalid keys as requested.
+ */
+const handleApiError = (error: any): string => {
+  const errorString = typeof error === 'string' ? error : JSON.stringify(error);
+  
+  // Check for Quota Exceeded (429)
+  if (errorString.includes("RESOURCE_EXHAUSTED") || errorString.includes("429") || errorString.includes("quota")) {
+    return "API Quota Exceeded. Please check your plan or wait a few minutes before trying again.";
+  }
+
+  // Check for API Key issues (401/403)
+  if (errorString.includes("API_KEY_INVALID") || errorString.includes("401") || errorString.includes("403")) {
+    return "There is a problem with the API key. Please ensure it is valid and has the correct permissions.";
+  }
+
+  // Check for safety filters
+  if (errorString.includes("SAFETY") || errorString.includes("blocked")) {
+    return "The request was blocked by safety filters. Please try a different scene or image.";
+  }
+
+  // Generic production failure on Vercel often relates to missing environment variables
+  if (errorString.includes("API_KEY is not available")) {
+    return "API key is missing from the environment configuration.";
+  }
+
+  return "Something went wrong with the AI generation. Please try again later.";
+};
+
 export const generateUGCImage = async (
   personImageBase64: string,
   personImageMimeType: string,
@@ -13,26 +43,22 @@ export const generateUGCImage = async (
 ): Promise<string> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API_KEY is not available in the environment.");
+    throw new Error("API key is not configured in the environment.");
   }
   
+  // Initialize AI client right before use
   const ai = new GoogleGenAI({ apiKey });
 
-  // Optimization: Consistently use JPEG as our optimizer in ImageUploader converts to optimized JPEG
   const pMime = personImageMimeType || 'image/jpeg';
   const prodMime = productImageMimeType || 'image/jpeg';
 
-  const prompt = `Create a realistic, high-quality UGC (User Generated Content) Instagram photo. 
-  Scene Atmosphere: "${sceneDescription}".
+  const prompt = `Generate a realistic User Generated Content (UGC) photo for Instagram.
+  Atmosphere: ${sceneDescription}.
   
-  Instructions:
-  1. Blend the person from the provided person-image and the product from the product-image.
-  2. Seamlessly place them into the specified scene.
-  3. The person should be interacting with the product naturally (holding it, using it, or looking at it).
-  4. Use soft, natural lighting and an authentic "smartphone photo" aesthetic.
-  5. The final output MUST be a single high-quality 1:1 square image.
-  
-  Produce ONLY the generated image.`;
+  The image must show the person from the provided portrait and the product from the product photo.
+  The person should be using or holding the product naturally in the environment.
+  Lighting: Soft, natural, lifestyle aesthetic.
+  Format: High-quality 1:1 square photo.`;
   
   try {
     const response = await ai.models.generateContent({
@@ -62,7 +88,7 @@ export const generateUGCImage = async (
     });
 
     if (!response.candidates?.[0]?.content?.parts) {
-      throw new Error("No output generated from the model.");
+      throw new Error("No output content generated.");
     }
 
     for (const part of response.candidates[0].content.parts) {
@@ -71,28 +97,23 @@ export const generateUGCImage = async (
       }
     }
     
-    // If no image but text was returned, try to provide that as info
-    const textOutput = response.text;
-    if (textOutput) {
-       console.warn("Model returned text instead of image:", textOutput);
-       throw new Error(`AI returned text instead of an image. This usually happens if the content is flagged. Try a different scene.`);
+    // If text is returned instead of image, it might be a subtle block
+    if (response.text) {
+      throw new Error("SAFETY_BLOCK");
     }
 
-    throw new Error("The AI model did not return an image part. Please try again.");
+    throw new Error("No image found in response.");
 
   } catch (error: any) {
     console.error("Gemini API call failed:", error);
 
-    // Retry for rate limits or transient server errors
+    // Simple retry for transient 500 errors
     if (retryCount < 1 && (error.message?.includes('500') || error.message?.includes('429'))) {
-      await delay(2000);
+      await delay(1500);
       return generateUGCImage(personImageBase64, personImageMimeType, productImageBase64, productImageMimeType, sceneDescription, retryCount + 1);
     }
 
-    if (error?.message?.includes("Requested entity was not found")) {
-      throw new Error("API endpoint not found. Ensure your environment has access to 'gemini-2.5-flash-image'.");
-    }
-    
-    throw new Error(error.message || "Failed to generate image. Please try again with smaller or clearer images.");
+    // Throw the cleaned up error message
+    throw new Error(handleApiError(error));
   }
 };
