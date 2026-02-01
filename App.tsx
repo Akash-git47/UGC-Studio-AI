@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { ImageUploader } from './components/ImageUploader';
 import { Spinner } from './components/Spinner';
@@ -20,8 +21,8 @@ const CATEGORIES = [
       "Co-working space",
       "Study table / college library",
       "Gym or fitness studio",
-      "Morning routine bathroom setup (mirror shots)",
-      "Kitchen countertop (for food, supplements, gadgets)"
+      "Morning routine bathroom setup",
+      "Kitchen countertop"
     ]
   },
   {
@@ -30,13 +31,13 @@ const CATEGORIES = [
     icon: "🏙️",
     subOptions: [
       "Café / Coffee shop",
-      "Street style shots (urban backgrounds)",
+      "Street style shots",
       "Shopping mall / storefronts",
       "Park or garden",
       "Beach / lake side",
       "Rooftop terrace",
-      "Outdoor market / flea market",
-      "Bus stop / metro station aesthetics"
+      "Outdoor market",
+      "Metro station aesthetics"
     ]
   },
   {
@@ -59,9 +60,9 @@ const CATEGORIES = [
     label: "Social & Event Spaces",
     icon: "🎉",
     subOptions: [
-      "Night club / party environment",
+      "Night club environment",
       "College campus",
-      "Event stalls / expo backgrounds",
+      "Event stalls",
       "Music concert ambience",
       "Friends’ hangout spaces",
       "Restaurant table setup"
@@ -73,10 +74,10 @@ const CATEGORIES = [
     icon: "🌿",
     subOptions: [
       "Forest trail",
-      "Hill station or mountain viewpoint",
+      "Hill station viewpoint",
       "Waterfall spot",
       "Bicycle ride background",
-      "Car dashboard / car interior shots",
+      "Car interior shots",
       "Travel suitcase / airport lounge"
     ]
   },
@@ -86,11 +87,11 @@ const CATEGORIES = [
     icon: "📸",
     subOptions: [
       "Flat-lay studio setup",
-      "Solid color backdrop (white, beige, pastel)",
+      "Solid color backdrop",
       "Minimal aesthetic shelf styling",
       "Marble/stone textured surface",
       "Wooden tabletop",
-      "Soft fabric textures (blankets, sheets)",
+      "Soft fabric textures",
       "LED-lit product table"
     ]
   }
@@ -132,9 +133,9 @@ const App: React.FC = () => {
       );
 
       setGeneratedImage(`data:image/png;base64,${resultBase64}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to generate image. Please try again.");
+      setError(err.message || "An unexpected error occurred. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +162,6 @@ const App: React.FC = () => {
         <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
         <div className="absolute top-0 -right-4 w-72 h-72 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
         <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -180,7 +180,7 @@ const App: React.FC = () => {
         <main className="space-y-6 md:space-y-8">
           
           {/* Step 1: Uploads */}
-          <section className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/50 border border-white/50 p-5 md:p-10">
+          <section className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/50 border border-white p-5 md:p-10">
             <div className="flex items-center gap-3 mb-6 md:mb-8 border-b border-slate-200/60 pb-4 md:pb-6">
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-sm shrink-0">1</div>
               <h2 className="text-lg md:text-xl font-bold text-slate-800">Upload Assets</h2>
@@ -205,7 +205,7 @@ const App: React.FC = () => {
           </section>
 
           {/* Step 2: Scene Selection */}
-          <section className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/50 border border-white/50 p-5 md:p-10 transition-all duration-300">
+          <section className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/50 border border-white p-5 md:p-10 transition-all duration-300">
              <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-sm shrink-0">2</div>
               <h2 className="text-lg md:text-xl font-bold text-slate-800">Select Atmosphere</h2>
@@ -231,7 +231,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Sub Options */}
-              <div className="animate-fade-in">
+              <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
                   {currentCategoryData?.label} Options
                 </h3>
@@ -267,7 +267,7 @@ const App: React.FC = () => {
             >
               {isLoading ? (
                 <>
-                  <Spinner /> <span>Generating...</span>
+                  <Spinner /> <span>Creating magic...</span>
                 </>
               ) : (
                 <>
@@ -277,20 +277,29 @@ const App: React.FC = () => {
             </button>
             
             {error && (
-              <div className="mt-6 px-6 py-3 bg-red-50 text-red-600 text-sm font-medium rounded-xl border border-red-100 flex items-center gap-2 animate-fade-in w-full md:w-auto justify-center">
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                {error}
+              <div className="mt-6 px-6 py-4 bg-red-50 text-red-600 text-sm font-medium rounded-2xl border border-red-100 flex flex-col items-center gap-2 animate-fade-in w-full max-w-xl text-center">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span className="font-bold uppercase tracking-wider text-xs">Generation Failed</span>
+                </div>
+                <p className="opacity-90">{error}</p>
+                <button 
+                  onClick={handleGenerate}
+                  className="mt-2 text-xs font-bold underline hover:no-underline"
+                >
+                  Try again
+                </button>
               </div>
             )}
           </div>
 
           {/* Step 3: Results */}
           {generatedImage && (
-            <section className="animate-fade-in-up bg-white rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+            <section className="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100">
                <div className="bg-slate-50 border-b border-slate-100 p-6 flex items-center justify-between">
                  <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-bold text-sm shrink-0">✓</div>
-                    <h2 className="text-xl font-bold text-slate-900">Result Ready</h2>
+                    <h2 className="text-xl font-bold text-slate-900">UGC Content Ready</h2>
                  </div>
                  <button 
                   onClick={handleDownload}
@@ -301,11 +310,11 @@ const App: React.FC = () => {
                </div>
                
                <div className="p-8 flex flex-col items-center">
-                 <div className="relative group rounded-xl overflow-hidden shadow-lg ring-1 ring-slate-200 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMWgydjJIMUMxeiIgZmlsbD0iI2YxZjVmOSIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9zdmc+')]">
+                 <div className="relative group rounded-xl overflow-hidden shadow-lg ring-1 ring-slate-200">
                     <img 
                       src={generatedImage} 
                       alt="Generated UGC" 
-                      className="max-h-[600px] w-auto object-contain block"
+                      className="max-h-[700px] w-full object-contain block"
                     />
                     
                     {/* Hover Overlay */}
@@ -320,7 +329,7 @@ const App: React.FC = () => {
                  </div>
                  <button 
                   onClick={handleDownload}
-                  className="mt-6 flex sm:hidden items-center gap-2 text-sm font-bold text-white bg-indigo-600 px-6 py-3 rounded-xl shadow-lg"
+                  className="mt-6 flex sm:hidden items-center gap-2 text-sm font-bold text-white bg-indigo-600 px-6 py-3 rounded-xl shadow-lg w-full justify-center"
                  >
                    <DownloadIcon /> Download Image
                  </button>

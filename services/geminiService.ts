@@ -1,12 +1,5 @@
-import { GoogleGenAI, Modality } from "@google/genai";
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+import { GoogleGenAI } from "@google/genai";
 
 export const generateUGCImage = async (
   personImageBase64: string,
@@ -15,14 +8,27 @@ export const generateUGCImage = async (
   productImageMimeType: string,
   sceneDescription: string
 ): Promise<string> => {
+  // Create a new GoogleGenAI instance right before the call to ensure 
+  // it uses the most up-to-date API key from the environment.
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY is not available in the environment.");
+  }
   
-  // Construct a prompt that matches the user's high-quality reference style.
-  // Reference: "A highly realistic photo of a perfume bottle, placed on a cafe table, soft natural sunlight, cozy warm background, blurred people walking behind, aesthetic lifestyle photography, 50mm lens, shallow depth of field, crisp details, premium visual look, ultra-HD."
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `A highly realistic, professional UGC (User Generated Content) photo for Instagram. 
+  The scene setting is: "${sceneDescription}".
+  The image must naturally blend the provided person and the provided product into this environment.
+  The person should be interacting with the product in a believable way (e.g., holding it, using it, or having it placed nearby in their space).
   
-  const prompt = `A highly realistic photo of this person and this product, placed in a setting described as: "${sceneDescription}". 
-  The person should look natural and authentic, genuinely interacting with the product.
-  Lighting and style: aesthetic lifestyle photography, 50mm lens, shallow depth of field, crisp details, premium visual look, ultra-HD, soft natural lighting (unless the scene implies otherwise).
-  The background should perfectly match the description "${sceneDescription}" and blend seamlessly with the subjects.`;
+  Style Requirements:
+  - Aesthetic lifestyle photography
+  - Soft natural lighting
+  - 50mm lens effect with shallow depth of field (bokeh background)
+  - Crisp details on both the person and the product
+  - Modern Instagram aesthetic (clean, vibrant, authentic)
+  - High resolution (1K)`;
   
   try {
     const response = await ai.models.generateContent({
@@ -47,18 +53,29 @@ export const generateUGCImage = async (
         ],
       },
       config: {
-        responseModalities: [Modality.IMAGE],
+        imageConfig: {
+          aspectRatio: "1:1",
+        },
       },
     });
+
+    if (!response.candidates?.[0]?.content?.parts) {
+      throw new Error("Invalid response format from Gemini API.");
+    }
 
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
         return part.inlineData.data;
       }
     }
-    throw new Error("No image data found in the response.");
-  } catch (error) {
+    
+    throw new Error("No image data found in the response parts.");
+  } catch (error: any) {
     console.error("Gemini API call failed:", error);
-    throw new Error("Failed to generate image via Gemini API.");
+    // If we get a 404/Not Found, it might be an API key issue in some environments
+    if (error?.message?.includes("Requested entity was not found")) {
+      throw new Error("API configuration error. Please check your API key and project settings.");
+    }
+    throw new Error(error.message || "Failed to generate image via Gemini API.");
   }
 };
