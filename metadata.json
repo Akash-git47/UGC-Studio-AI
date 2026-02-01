@@ -1,0 +1,5 @@
+{
+  "name": "UGC Image Generator",
+  "description": "Upload a product image and a person's image to generate a realistic, user-generated content (UGC) style photo for social media posts.",
+  "requestFramePermissions": []
+}
